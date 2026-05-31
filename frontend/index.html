@@ -299,7 +299,7 @@ function notify(msg, type='ok') {
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function fmtDate(iso) {
-  const d = new Date(iso), now = new Date();
+  const d = new Date(iso + 'Z'), now = new Date();
   const diff = Math.floor((now - d) / 1000);
   if (diff < 60) return 'just now';
   if (diff < 3600) return Math.floor(diff/60) + 'm ago';
@@ -370,7 +370,7 @@ function render() {
 
   let mainHTML = '';
 
-  if (S.mode === 'idle' || !selected) {
+  if (S.mode === 'idle' || (!selected && S.mode !== 'new')) {
     mainHTML = `
       <div class="loading" style="flex-direction:column;gap:12px;">
         <div style="font-size:32px;opacity:.15;">{ }</div>

@@ -1,0 +1,23 @@
+# SQLite database (persists locally, never commit it)
+data/
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+scrap.txt
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

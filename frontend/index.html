@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>devbin</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0e0e10;--surface:#18181b;--surface2:#1f1f24;--surface3:#27272c;
+    --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+    --text:#e4e4e7;--muted:#71717a;
+    --accent:#a78bfa;--accent2:#7c3aed;--accent-glow:rgba(167,139,250,0.15);
+    --green:#4ade80;--red:#f87171;
+    --mono:'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;min-height:100vh}
+
+  /* ── top bar ── */
+  .topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:100}
+  .logo{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent);letter-spacing:-0.5px;display:flex;align-items:center;gap:6px}
+  .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block}
+  .spacer{flex:1}
+
+  /* ── buttons ── */
+  .btn{padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text);transition:all .15s;font-family:inherit}
+  .btn:hover{background:var(--surface3);border-color:var(--accent)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn-primary{background:var(--accent2);border-color:var(--accent);color:#fff;font-weight:500}
+  .btn-primary:hover{background:#6d28d9}
+  .btn-sm{padding:4px 10px;font-size:12px}
+  .btn-ghost{border-color:transparent}
+  .btn-ghost:hover{border-color:var(--border2)}
+  .badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:4px;background:var(--surface3);color:var(--muted);border:1px solid var(--border)}
+
+  /* ── layout ── */
+  .layout{display:flex;height:calc(100vh - 49px)}
+  .sidebar{width:240px;min-width:240px;border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+  .sidebar-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .sidebar-header span{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;flex:1}
+  .paste-list{flex:1;overflow-y:auto;padding:8px}
+  .paste-item{padding:10px 12px;border-radius:6px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;transition:all .12s}
+  .paste-item:hover{background:var(--surface2);border-color:var(--border)}
+  .paste-item.active{background:var(--accent-glow);border-color:var(--accent)}
+  .paste-item-name{font-weight:500;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .paste-item-meta{display:flex;align-items:center;gap:6px;margin-top:3px}
+  .lang-tag{font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:3px;background:var(--surface3);color:var(--accent)}
+  .paste-date{font-size:11px;color:var(--muted)}
+  .empty-state{padding:32px 16px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6}
+
+  /* ── main panel ── */
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+  .toolbar{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap}
+  .input-field{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border .15s}
+  .input-field:focus{border-color:var(--accent)}
+  .input-name{width:220px;font-weight:500}
+  .select-lang{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;cursor:pointer}
+  .select-lang:focus{border-color:var(--accent)}
+
+  /* ── editor ── */
+  .editor-area{flex:1;display:flex;overflow:hidden}
+  .line-numbers{background:var(--surface);border-right:1px solid var(--border);padding:16px 0;font-family:var(--mono);font-size:13px;line-height:22px;color:var(--muted);text-align:right;min-width:48px;user-select:none;overflow:hidden;flex-shrink:0}
+  .line-num{padding:0 12px}
+  .code-textarea{flex:1;background:var(--bg);border:none;outline:none;resize:none;padding:16px 20px;font-family:var(--mono);font-size:13px;line-height:22px;color:var(--text);caret-color:var(--accent);tab-size:2;width:100%}
+  .code-textarea::placeholder{color:var(--muted)}
+
+  /* ── viewer ── */
+  .view-area{flex:1;overflow:auto}
+  .view-area pre{margin:0}
+  .view-area code{font-size:13px!important;line-height:22px!important;padding:16px 20px!important;background:var(--bg)!important;font-family:var(--mono)!important;display:block!important;white-space:pre!important}
+
+  /* ── status bar ── */
+  .statusbar{padding:4px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--surface);font-size:11px;color:var(--muted);flex-shrink:0}
+  .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+
+  /* ── auth modal ── */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:24px}
+  .modal{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:32px;width:380px;max-width:90vw}
+  .modal-title{font-size:20px;font-weight:600;margin-bottom:6px}
+  .modal-sub{color:var(--muted);font-size:13px;margin-bottom:24px}
+  .form-group{margin-bottom:16px}
+  .form-label{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:6px;display:block;text-transform:uppercase;letter-spacing:.4px}
+  .form-input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;transition:border .15s}
+  .form-input:focus{border-color:var(--accent)}
+  .form-error{color:var(--red);font-size:12px;margin-top:8px;padding:8px 12px;background:rgba(248,113,113,0.08);border-radius:6px;border:1px solid rgba(248,113,113,0.2)}
+  .full-btn{width:100%;padding:10px;font-size:14px;border-radius:8px;margin-top:4px}
+  .modal-switch{font-size:12px;color:var(--muted);margin-top:16px;text-align:center}
+  .modal-switch a{color:var(--accent);cursor:pointer}
+  .modal-switch a:hover{text-decoration:underline}
+
+  /* ── user chip ── */
+  .user-chip{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--muted);cursor:pointer}
+  .user-chip:hover{border-color:var(--border2)}
+  .avatar{width:20px;height:20px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;flex-shrink:0}
+
+  /* ── notification ── */
+  .notif{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:12px 18px;font-size:13px;color:var(--text);z-index:300;display:flex;align-items:center;gap:8px;transition:opacity .3s,transform .3s;transform:translateY(0)}
+  .notif.hidden{opacity:0;pointer-events:none;transform:translateY(8px)}
+  .notif-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+  .notif-dot.ok{background:var(--green)}
+  .notif-dot.err{background:var(--red)}
+
+  /* ── loading ── */
+  .loading{display:flex;align-items:center;justify-content:center;flex:1;color:var(--muted);font-size:13px;gap:8px}
+  .spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  select option{background:#1f1f24}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px}
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+<div id="notif" class="notif hidden">
+  <span class="notif-dot ok" id="notif-dot"></span>
+  <span id="notif-text"></span>
+</div>
+
+<script>
+const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8000'
+  : '/api';   // swap to your server URL when deploying
+
+const LANGS = [
+  {id:'plaintext',label:'Plain Text'},{id:'markdown',label:'Markdown'},
+  {id:'javascript',label:'JavaScript'},{id:'typescript',label:'TypeScript'},
+  {id:'python',label:'Python'},{id:'c',label:'C'},{id:'cpp',label:'C++'},
+  {id:'java',label:'Java'},{id:'csharp',label:'C#'},{id:'go',label:'Go'},
+  {id:'rust',label:'Rust'},{id:'php',label:'PHP'},{id:'ruby',label:'Ruby'},
+  {id:'swift',label:'Swift'},{id:'kotlin',label:'Kotlin'},
+  {id:'shell',label:'Shell/Bash'},{id:'sql',label:'SQL'},
+  {id:'html',label:'HTML'},{id:'css',label:'CSS'},{id:'json',label:'JSON'},
+  {id:'yaml',label:'YAML'},{id:'xml',label:'XML'},
+  {id:'dockerfile',label:'Dockerfile'},{id:'ini',label:'INI/Config'},
+  {id:'diff',label:'Diff'},
+];
+
+// ── state ──────────────────────────────────────────────────────────────────────
+let S = {
+  page: 'loading',   // loading | login | register | app
+  token: localStorage.getItem('devbin_token') || null,
+  user: null,
+  pastes: [],
+  selectedId: null,
+  mode: 'idle',      // idle | edit | new | view
+  editName: '',
+  editLang: 'python',
+  editCode: '',
+  authName: '', authEmail: '', authPass: '', authError: '',
+  saving: false, loading: false,
+};
+
+// ── API helpers ────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const headers = {'Content-Type': 'application/json'};
+  if (S.token) headers['Authorization'] = 'Bearer ' + S.token;
+  const res = await fetch(API + path, {
+    method, headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Request failed');
+  return data;
+}
+
+async function apiForm(path, body) {
+  const form = new URLSearchParams();
+  for (const [k, v] of Object.entries(body)) form.append(k, v);
+  const res = await fetch(API + path, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: form,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Login failed');
+  return data;
+}
+
+// ── actions ────────────────────────────────────────────────────────────────────
+async function init() {
+  if (!S.token) { S.page = 'login'; render(); return; }
+  try {
+    S.user = await api('GET', '/me');
+    S.pastes = await api('GET', '/pastes');
+    S.page = 'app';
+  } catch(e) {
+    S.token = null; localStorage.removeItem('devbin_token');
+    S.page = 'login';
+  }
+  render();
+}
+
+async function doLogin() {
+  S.authError = '';
+  if (!S.authEmail || !S.authPass) { S.authError = 'Please fill in all fields.'; render(); return; }
+  try {
+    const d = await apiForm('/login', {username: S.authEmail, password: S.authPass});
+    S.token = d.access_token; localStorage.setItem('devbin_token', S.token);
+    S.user = {name: d.name, email: d.email};
+    S.pastes = await api('GET', '/pastes');
+    S.page = 'app'; S.authError = '';
+    render(); notify('Welcome back, ' + d.name + '!', 'ok');
+  } catch(e) { S.authError = e.message; render(); }
+}
+
+async function doRegister() {
+  S.authError = '';
+  if (!S.authName || !S.authEmail || !S.authPass) { S.authError = 'Please fill in all fields.'; render(); return; }
+  if (!S.authEmail.includes('@')) { S.authError = 'Enter a valid email.'; render(); return; }
+  if (S.authPass.length < 6) { S.authError = 'Password must be at least 6 characters.'; render(); return; }
+  try {
+    const d = await api('POST', '/register', {name: S.authName, email: S.authEmail, password: S.authPass});
+    S.token = d.access_token; localStorage.setItem('devbin_token', S.token);
+    S.user = {name: d.name, email: d.email};
+    S.pastes = [];
+    S.page = 'app'; S.authError = '';
+    render(); notify('Account created! Welcome, ' + d.name + '!', 'ok');
+  } catch(e) { S.authError = e.message; render(); }
+}
+
+function doLogout() {
+  S.token = null; localStorage.removeItem('devbin_token');
+  S.user = null; S.pastes = []; S.selectedId = null; S.mode = 'idle';
+  S.page = 'login'; S.authEmail = ''; S.authPass = ''; S.authName = '';
+  render();
+}
+
+async function doSave() {
+  if (!S.editName.trim()) { notify('Give your paste a name!', 'err'); return; }
+  if (!S.editCode.trim()) { notify('Paste some code first!', 'err'); return; }
+  S.saving = true; render();
+  try {
+    const payload = {name: S.editName.trim(), lang: S.editLang, code: S.editCode};
+    if (S.mode === 'new') {
+      const p = await api('POST', '/pastes', payload);
+      S.pastes.unshift(p); S.selectedId = p.id;
+    } else {
+      const p = await api('PUT', '/pastes/' + S.selectedId, payload);
+      const idx = S.pastes.findIndex(x => x.id === S.selectedId);
+      if (idx >= 0) S.pastes[idx] = p;
+    }
+    S.mode = 'view'; notify('Paste saved!', 'ok');
+  } catch(e) { notify(e.message, 'err'); }
+  S.saving = false; render();
+}
+
+async function doDelete(id) {
+  try {
+    await api('DELETE', '/pastes/' + id);
+    S.pastes = S.pastes.filter(x => x.id !== id);
+    if (S.selectedId === id) { S.selectedId = null; S.mode = 'idle'; }
+    notify('Paste deleted.', 'ok'); render();
+  } catch(e) { notify(e.message, 'err'); }
+}
+
+function selectPaste(id) {
+  const p = S.pastes.find(x => x.id === id);
+  if (!p) return;
+  S.selectedId = id; S.editName = p.name; S.editLang = p.lang; S.editCode = p.code;
+  S.mode = 'view'; render();
+}
+
+function newPaste() {
+  S.selectedId = null; S.editName = 'Untitled paste'; S.editLang = 'python'; S.editCode = '';
+  S.mode = 'new'; render();
+  setTimeout(() => { const el = document.querySelector('.input-name'); if (el){el.focus();el.select();} }, 50);
+}
+
+function startEdit() {
+  const p = S.pastes.find(x => x.id === S.selectedId);
+  if (p) { S.editName = p.name; S.editLang = p.lang; S.editCode = p.code; }
+  S.mode = 'edit'; render();
+}
+
+function copyCode() {
+  navigator.clipboard.writeText(S.editCode).catch(()=>{});
+  notify('Copied to clipboard!', 'ok');
+}
+
+// ── notification ───────────────────────────────────────────────────────────────
+let notifTimer;
+function notify(msg, type='ok') {
+  clearTimeout(notifTimer);
+  const el = document.getElementById('notif');
+  const dot = document.getElementById('notif-dot');
+  document.getElementById('notif-text').textContent = msg;
+  dot.className = 'notif-dot ' + type;
+  el.classList.remove('hidden');
+  notifTimer = setTimeout(() => el.classList.add('hidden'), 2800);
+}
+
+// ── helpers ────────────────────────────────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function fmtDate(iso) {
+  const d = new Date(iso), now = new Date();
+  const diff = Math.floor((now - d) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+
+function langLabel(id){ return LANGS.find(l=>l.id===id)?.label||id; }
+
+function lineNums(code) {
+  return Array.from({length: Math.max(code.split('\n').length,1)}, (_,i) =>
+    `<div class="line-num">${i+1}</div>`).join('');
+}
+
+// ── render ─────────────────────────────────────────────────────────────────────
+function render() {
+  const root = document.getElementById('root');
+
+  if (S.page === 'loading') {
+    root.innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;"><div class="spinner"></div></div>`;
+    return;
+  }
+
+  if (S.page === 'login' || S.page === 'register') {
+    const isLogin = S.page === 'login';
+    root.innerHTML = `
+      <div class="modal-bg">
+        <div class="logo"><span class="logo-dot"></span>devbin</div>
+        <div class="modal">
+          <div class="modal-title">${isLogin ? 'Sign in' : 'Create account'}</div>
+          <div class="modal-sub">${isLogin ? 'Welcome back. Sign in to your pastes.' : 'Start saving code snippets and notes.'}</div>
+          ${!isLogin ? `<div class="form-group"><label class="form-label">Name</label><input class="form-input" id="a-name" placeholder="Your name" value="${esc(S.authName)}" oninput="S.authName=this.value"/></div>` : ''}
+          <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="a-email" type="email" placeholder="you@example.com" value="${esc(S.authEmail)}" oninput="S.authEmail=this.value"/></div>
+          <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="a-pass" type="password" placeholder="••••••••" value="${esc(S.authPass)}" oninput="S.authPass=this.value" onkeydown="if(event.key==='Enter')${isLogin?'doLogin()':'doRegister()'}"/></div>
+          ${S.authError ? `<div class="form-error">${esc(S.authError)}</div>` : ''}
+          <button class="btn btn-primary full-btn" onclick="${isLogin?'doLogin()':'doRegister()'}">
+            ${isLogin ? 'Sign in' : 'Create account'}
+          </button>
+          <div class="modal-switch">
+            ${isLogin
+              ? `Don't have an account? <a onclick="S.page='register';S.authError='';render()">Sign up</a>`
+              : `Already have an account? <a onclick="S.page='login';S.authError='';render()">Sign in</a>`}
+          </div>
+        </div>
+      </div>`;
+    if (isLogin) setTimeout(()=>document.getElementById('a-email')?.focus(),50);
+    else setTimeout(()=>document.getElementById('a-name')?.focus(),50);
+    return;
+  }
+
+  // ── main app ──
+  const initials = (S.user?.name||'U').slice(0,2).toUpperCase();
+  const selected = S.pastes.find(x => x.id === S.selectedId);
+
+  const langOpts = LANGS.map(l =>
+    `<option value="${l.id}" ${l.id===S.editLang?'selected':''}>${l.label}</option>`).join('');
+
+  const pasteListHTML = S.pastes.length === 0
+    ? `<div class="empty-state">No pastes yet.<br>Hit <b>+ New</b> to start saving your code.</div>`
+    : S.pastes.map(p => `
+        <div class="paste-item ${p.id===S.selectedId?'active':''}" onclick="selectPaste(${p.id})">
+          <div class="paste-item-name">${esc(p.name)}</div>
+          <div class="paste-item-meta">
+            <span class="lang-tag">${esc(p.lang)}</span>
+            <span class="paste-date">${fmtDate(p.created_at)}</span>
+          </div>
+        </div>`).join('');
+
+  let mainHTML = '';
+
+  if (S.mode === 'idle' || !selected) {
+    mainHTML = `
+      <div class="loading" style="flex-direction:column;gap:12px;">
+        <div style="font-size:32px;opacity:.15;">{ }</div>
+        <div>Select a paste or create a new one</div>
+        <button class="btn btn-primary" onclick="newPaste()">+ New paste</button>
+      </div>`;
+  } else if (S.mode === 'view') {
+    mainHTML = `
+      <div class="toolbar">
+        <span style="font-weight:500;font-size:14px;">${esc(selected.name)}</span>
+        <span class="badge">${esc(selected.lang)}</span>
+        <div class="spacer"></div>
+        <button class="btn btn-sm btn-ghost" onclick="copyCode()">Copy</button>
+        <button class="btn btn-sm" onclick="startEdit()">Edit</button>
+        <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="doDelete(${selected.id})">Delete</button>
+      </div>
+      <div class="view-area"><pre><code id="hlcode" class="language-${esc(selected.lang)}"></code></pre></div>
+      <div class="statusbar">
+        <span class="status-dot"></span>
+        <span>${esc(langLabel(selected.lang))}</span>
+        <span>·</span>
+        <span>${selected.code.split('\n').length} lines</span>
+        <span>·</span>
+        <span>${selected.code.length} chars</span>
+      </div>`;
+  } else {
+    // edit or new
+    const code = S.editCode;
+    mainHTML = `
+      <div class="toolbar">
+        <input class="input-field input-name" placeholder="Paste name…" value="${esc(S.editName)}" oninput="S.editName=this.value"/>
+        <select class="select-lang" onchange="S.editLang=this.value">${langOpts}</select>
+        <div class="spacer"></div>
+        ${S.mode==='edit'?`<button class="btn btn-sm btn-ghost" onclick="S.mode='view';render()">Cancel</button>`:''}
+        <button class="btn btn-sm btn-primary" onclick="doSave()" ${S.saving?'disabled':''}>
+          ${S.saving?'Saving…':'Save paste'}
+        </button>
+      </div>
+      <div class="editor-area">
+        <div class="line-numbers" id="ln">${lineNums(code)}</div>
+        <textarea class="code-textarea" spellcheck="false" placeholder="# Paste your code here…"
+          oninput="S.editCode=this.value;document.getElementById('ln').innerHTML=
+            Array.from({length:Math.max(this.value.split('\\n').length,1)},(_,i)=>
+              '<div class=\\'line-num\\'>'+(i+1)+'</div>').join('')"
+        >${esc(code)}</textarea>
+      </div>
+      <div class="statusbar">
+        <span class="status-dot"></span>
+        <span>${esc(langLabel(S.editLang))}</span>
+        <span>·</span>
+        <span id="lc">${Math.max(code.split('\n').length,1)} lines</span>
+        <span>·</span>
+        <span id="cc">${code.length} chars</span>
+      </div>`;
+  }
+
+  root.innerHTML = `
+    <div class="topbar">
+      <div class="logo"><span class="logo-dot"></span>devbin</div>
+      <div class="spacer"></div>
+      <div class="user-chip" onclick="doLogout()" title="Click to sign out">
+        <div class="avatar">${initials}</div>
+        <span>${esc(S.user?.email||'')}</span>
+      </div>
+    </div>
+    <div class="layout">
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <span>My pastes</span>
+          <button class="btn btn-sm btn-primary" onclick="newPaste()">+ New</button>
+        </div>
+        <div class="paste-list">${pasteListHTML}</div>
+      </div>
+      <div class="main">${mainHTML}</div>
+    </div>`;
+
+  if (S.mode === 'view' && selected) {
+    setTimeout(() => {
+      const el = document.getElementById('hlcode');
+      if (el) { el.textContent = selected.code; try{ hljs.highlightElement(el); }catch(e){} }
+    }, 0);
+  }
+}
+
+init();
+</script>
+</body>
+</html>

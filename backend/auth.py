@@ -23,7 +23,7 @@ def create_token(email: str) -> str:
     return jwt.encode({"sub": email, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_token(token: str) -> str | None:
+def verify_token(token: str) -> str:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get("sub")
